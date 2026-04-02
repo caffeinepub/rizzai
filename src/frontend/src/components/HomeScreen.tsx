@@ -1,5 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { MOCK_MATCHES, type Match } from "@/data/mockData";
+import {
+  CURRENT_USER_INTERESTS,
+  formatInsightLine,
+  getMatchInsights,
+} from "@/utils/matchInsights";
 import { Bell, Clock, Compass, Heart, Sparkles, X, Zap } from "lucide-react";
 import {
   AnimatePresence,
@@ -481,6 +486,9 @@ function CardPhoto({ match }: { match: Match }) {
 }
 
 function CardFull({ match, index }: { match: Match; index: number }) {
+  const shared = getMatchInsights(CURRENT_USER_INTERESTS, match.interests);
+  const insightLine = formatInsightLine(shared);
+
   return (
     <div className="flex flex-col h-full">
       {/* Photo area — top 65% */}
@@ -540,6 +548,15 @@ function CardFull({ match, index }: { match: Match; index: number }) {
               </span>
             ))}
           </div>
+          {/* AI Match Insight line */}
+          {insightLine && (
+            <p
+              className="text-[11px] font-medium mt-2.5 truncate"
+              style={{ color: "oklch(0.72 0.18 280)" }}
+            >
+              ✨ {insightLine}
+            </p>
+          )}
         </div>
       </div>
     </div>

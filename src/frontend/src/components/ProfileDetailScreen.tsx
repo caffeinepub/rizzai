@@ -9,6 +9,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { Match } from "@/data/mockData";
+import {
+  CURRENT_USER_INTERESTS,
+  getInterestEmoji,
+  getMatchInsights,
+} from "@/utils/matchInsights";
 import { getTrustBadge } from "@/utils/trustUtils";
 import {
   ArrowLeft,
@@ -67,6 +72,11 @@ export function ProfileDetailScreen({
   const [reportOpen, setReportOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+  const sharedInterests = getMatchInsights(
+    CURRENT_USER_INTERESTS,
+    profile.interests,
+  );
 
   const handleReport = () => {
     setReportOpen(false);
@@ -230,6 +240,57 @@ export function ProfileDetailScreen({
               />
             </div>
           </motion.div>
+
+          {/* AI Match Insights Card */}
+          {sharedInterests.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              data-ocid="profile.card"
+              className="rounded-2xl p-4 border"
+              style={{
+                background:
+                  "linear-gradient(145deg, oklch(0.17 0.06 275), oklch(0.14 0.04 270))",
+                borderColor: "oklch(0.58 0.22 265 / 0.30)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: "oklch(0.72 0.18 280)" }}
+                >
+                  ✨ AI Match Insights
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-foreground mb-3">
+                {sharedInterests.length === 1
+                  ? `You both love ${sharedInterests[0]}`
+                  : `${sharedInterests.length} things in common`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {sharedInterests.map((interest) => (
+                  <span
+                    key={interest}
+                    className="text-xs px-3 py-1.5 rounded-full font-medium"
+                    style={{
+                      background: "oklch(0.58 0.22 265 / 0.18)",
+                      border: "1px solid oklch(0.58 0.22 265 / 0.40)",
+                      color: "oklch(0.82 0.16 275)",
+                    }}
+                  >
+                    {getInterestEmoji(interest)} {interest}
+                  </span>
+                ))}
+              </div>
+              <p
+                className="text-[11px] mt-3 leading-relaxed"
+                style={{ color: "oklch(0.55 0.10 270)" }}
+              >
+                Use these to spark a conversation 💬
+              </p>
+            </motion.div>
+          )}
 
           {/* Bio Card */}
           <motion.div

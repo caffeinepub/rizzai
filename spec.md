@@ -1,25 +1,29 @@
 # RizzAI
 
 ## Current State
-App has Home screen with swipe cards, Chat screen with AI assistant panel, Discover, and Profile.
+The app has swipe-based Home screen with match cards, AI First Message overlay after swiping right, chat with AI assistant panel, trust system, monetization, Smart Boost, Who Viewed You, and conversation health meter.
 
 ## Requested Changes (Diff)
 
 ### Add
-- After Connect on Home, show an AI First Message overlay on the Chat screen
-- Overlay shows 1 pre-generated suggested opening message tailored to the matched profile
-- "Send AI message" primary button sends it with one tap
-- "Write my own" dismiss option
+- AI Match Insights component: a card/section that surfaces shared interests and similarities between the current user and a match
+- Displayed in two places:
+  1. On the swipe card (Home screen) — compact inline insight like "You both like travel + fitness"
+  2. On the Profile Detail screen — a more prominent insight card with shared tags highlighted
+- Mock insight data derived from the profile's interest tags compared to the user's own interests
+- Insight labels styled as small pills/chips with an emoji or icon prefix (e.g. ✈️ Travel, 💪 Fitness)
+- A short headline copy: "You both like [X + Y]" or "X things in common"
 
 ### Modify
-- HomeScreen: Connect action passes matched profile + aiFirstMessage flag to Chat
-- ChatScreen: render overlay on empty chat when flag is set
+- Home swipe cards: add a small match insight line below the bio/tags
+- Profile Detail screen: add an "AI Insights" card section above the sticky CTA button
 
 ### Remove
-- Nothing
+- Nothing removed
 
 ## Implementation Plan
-1. Add AI first message suggestion generator based on profile name/interests
-2. HomeScreen Connect passes matched profile + flag to ChatScreen
-3. ChatScreen shows bottom card overlay: suggested message, Send AI message button, Write my own dismiss
-4. On Send, insert message into chat and dismiss overlay
+1. Define a shared `getMatchInsights(userInterests, matchInterests)` utility that returns overlapping tags
+2. Add compact insight line to Home swipe cards (1 line, truncated)
+3. Add AI Match Insights card to Profile Detail screen with icon pills and headline
+4. Use mock user interests (travel, fitness, music, etc.) as the "current user" baseline
+5. Style consistently with dark theme — subtle accent color for insight pills
