@@ -11,10 +11,12 @@ import { useEffect, useRef, useState } from "react";
 import { ProfileDetailScreen } from "./ProfileDetailScreen";
 
 interface HomeScreenProps {
+  onConnectMatch?: (match: Match) => void;
   onConnect: (matchId: string) => void;
   connectedIds: Set<string>;
   onGoToDiscover?: () => void;
   onOpenPricing?: () => void;
+  boostEndsAt?: number | null;
 }
 
 function useCountdown() {
@@ -45,18 +47,25 @@ const DAILY_MATCHES = MOCK_MATCHES.slice(0, 3);
 
 export function HomeScreen({
   onConnect,
+  onConnectMatch,
   connectedIds: _connectedIds,
   onGoToDiscover,
   onOpenPricing,
+  boostEndsAt,
 }: HomeScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [detailProfile, setDetailProfile] = useState<Match | null>(null);
   const timeLeft = useCountdown();
 
+  const isBoostActive = !!boostEndsAt && boostEndsAt > Date.now();
   const isDone = currentIndex >= DAILY_MATCHES.length;
 
   const handleConnect = (match: Match) => {
-    onConnect(match.id);
+    if (onConnectMatch) {
+      onConnectMatch(match);
+    } else {
+      onConnect(match.id);
+    }
     setCurrentIndex((prev) => prev + 1);
   };
 
@@ -87,6 +96,22 @@ export function HomeScreen({
           <span className="text-lg font-bold tracking-tight text-gradient">
             RizzAI
           </span>
+          {/* Boost Active Pill */}
+          <AnimatePresence>
+            {isBoostActive && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.7, x: -4 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.7, x: -4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                data-ocid="home.boost.badge"
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                style={{ background: "oklch(0.62 0.22 290 / 0.85)" }}
+              >
+                🚀 Boost Active
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <button
           type="button"

@@ -2,6 +2,7 @@ import { ProfileDetailScreen } from "@/components/ProfileDetailScreen";
 import { TrustBadge } from "@/components/TrustBadge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { MOCK_MATCHES, type Match } from "@/data/mockData";
 import { getActivityStatus, rankProfiles } from "@/utils/discoverRanking";
 import { SlidersHorizontal, Star, UserPlus, Zap } from "lucide-react";
@@ -41,8 +42,17 @@ export function DiscoverScreen() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Match | null>(null);
+  const [showHighMatchOnly, setShowHighMatchOnly] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredRanked = useMemo(
+    () =>
+      showHighMatchOnly
+        ? ranked.filter((p) => p.compatibility != null && p.compatibility >= 80)
+        : ranked,
+    [ranked, showHighMatchOnly],
+  );
 
   // Mark first batch as seen on mount
   useEffect(() => {
@@ -50,17 +60,17 @@ export function DiscoverScreen() {
   }, [ranked]);
 
   const loadMore = useCallback(() => {
-    if (isLoadingMore || visibleCount >= ranked.length) return;
+    if (isLoadingMore || visibleCount >= filteredRanked.length) return;
     setIsLoadingMore(true);
     loadingTimerRef.current = setTimeout(() => {
       setVisibleCount((prev) => {
-        const next = Math.min(prev + PAGE_SIZE, ranked.length);
-        markSeen(ranked.slice(prev, next).map((p) => p.id));
+        const next = Math.min(prev + PAGE_SIZE, filteredRanked.length);
+        markSeen(filteredRanked.slice(prev, next).map((p) => p.id));
         return next;
       });
       setIsLoadingMore(false);
     }, 1800);
-  }, [isLoadingMore, visibleCount, ranked]);
+  }, [isLoadingMore, visibleCount, filteredRanked]);
 
   // IntersectionObserver on sentinel
   useEffect(() => {
@@ -85,8 +95,8 @@ export function DiscoverScreen() {
     };
   }, []);
 
-  const visibleProfiles = ranked.slice(0, visibleCount);
-  const hasMore = visibleCount < ranked.length;
+  const visibleProfiles = filteredRanked.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredRanked.length;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto relative">
@@ -109,6 +119,46 @@ export function DiscoverScreen() {
           <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
         </button>
       </header>
+
+      {/* High match toggle */}
+      <div className="px-5 pb-4 flex-shrink-0">
+        <div
+          className={`flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
+            showHighMatchOnly
+              ? "border-primary/40 bg-primary/10"
+              : "border-border bg-secondary/40"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none">⚡</span>
+            <span
+              className={`text-sm font-medium transition-colors ${
+                showHighMatchOnly ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              High matches only
+            </span>
+            {showHighMatchOnly && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30"
+              >
+                80%+
+              </motion.span>
+            )}
+          </div>
+          <Switch
+            data-ocid="discover.high_match.toggle"
+            checked={showHighMatchOnly}
+            onCheckedChange={(v) => {
+              setShowHighMatchOnly(v);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            aria-label="Show only high matches"
+          />
+        </div>
+      </div>
 
       {/* Profile list */}
       <div className="px-5 pb-6 space-y-4 flex-1">
@@ -134,6 +184,33 @@ export function DiscoverScreen() {
 
         {/* Sentinel */}
         {hasMore && !isLoadingMore && <div ref={sentinelRef} className="h-4" />}
+
+        {/* Empty state: filter on, no results */}
+        {!isLoadingMore && filteredRanked.length === 0 && showHighMatchOnly && (
+          <motion.div
+            data-ocid="discover.empty_state"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-3">
+              <span className="text-2xl">⚡</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-1">
+              No high matches right now
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Try turning off the filter to see more people.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowHighMatchOnly(false)}
+              className="text-xs text-primary font-semibold underline underline-offset-2"
+            >
+              Show all profiles
+            </button>
+          </motion.div>
+        )}
 
         {/* End of list */}
         {!hasMore && !isLoadingMore && visibleProfiles.length > 0 && (

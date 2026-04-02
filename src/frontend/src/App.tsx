@@ -7,6 +7,7 @@ import { PricingScreen } from "@/components/PricingScreen";
 import { ProfileScreen } from "@/components/ProfileScreen";
 import { ProfileSetupFlow } from "@/components/ProfileSetupFlow";
 import { Toaster } from "@/components/ui/sonner";
+import type { Match } from "@/data/mockData";
 import { Compass, Home, MessageCircle, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -27,9 +28,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [showPricing, setShowPricing] = useState(false);
+  const [boostEndsAt, setBoostEndsAt] = useState<number | null>(null);
+  const [aiFirstMessageProfile, setAiFirstMessageProfile] =
+    useState<Match | null>(null);
 
   const handleConnect = (matchId: string) => {
     setConnectedIds((prev) => new Set([...prev, matchId]));
+  };
+
+  const handleConnectMatch = (match: Match) => {
+    setConnectedIds((prev) => new Set([...prev, match.id]));
+    setAiFirstMessageProfile(match);
+    setActiveTab("chat");
+  };
+
+  const handleActivateBoost = (endsAt: number | null) => {
+    setBoostEndsAt(endsAt);
   };
 
   if (!isLoggedIn) {
@@ -75,17 +89,27 @@ export default function App() {
             {activeTab === "home" && (
               <HomeScreen
                 onConnect={handleConnect}
+                onConnectMatch={handleConnectMatch}
                 connectedIds={connectedIds}
                 onGoToDiscover={() => setActiveTab("discover")}
                 onOpenPricing={() => setShowPricing(true)}
+                boostEndsAt={boostEndsAt}
               />
             )}
             {activeTab === "discover" && <DiscoverScreen />}
             {activeTab === "chat" && (
-              <ChatScreen onOpenPricing={() => setShowPricing(true)} />
+              <ChatScreen
+                onOpenPricing={() => setShowPricing(true)}
+                aiFirstMessageProfile={aiFirstMessageProfile}
+                onClearAiFirstMessage={() => setAiFirstMessageProfile(null)}
+              />
             )}
             {activeTab === "profile" && (
-              <ProfileScreen onOpenPricing={() => setShowPricing(true)} />
+              <ProfileScreen
+                onOpenPricing={() => setShowPricing(true)}
+                boostEndsAt={boostEndsAt}
+                onActivateBoost={handleActivateBoost}
+              />
             )}
           </motion.div>
         </AnimatePresence>

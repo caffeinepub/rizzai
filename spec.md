@@ -1,33 +1,25 @@
-# RizzAI Monetization v2
+# RizzAI
 
 ## Current State
-Monetization overlay exists with Free / Pro ₹599 / Elite ₹1199 flat pricing cards, credit packs, soft upsell nudge in chat, and AI panel credit counter.
+App has Home screen with swipe cards, Chat screen with AI assistant panel, Discover, and Profile.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Duration toggle (Daily / Weekly / Monthly) on the pricing overlay
-- Pro plan: Daily ₹49, Weekly ₹199, Monthly ₹599
-- Elite plan: Weekly ₹299, Monthly ₹1199 (no daily option — hide daily toggle state for Elite)
-- "Most Popular" badge on Pro Monthly
-- "Best Value" badge on Elite Monthly
-- Value-based messaging per plan: "Get better replies", "Increase your chances"
-- Contextual upsell trigger: when user runs out of credits, wants more matches, or is active in chat
+- After Connect on Home, show an AI First Message overlay on the Chat screen
+- Overlay shows 1 pre-generated suggested opening message tailored to the matched profile
+- "Send AI message" primary button sends it with one tap
+- "Write my own" dismiss option
 
 ### Modify
-- Pricing cards to show dynamic price based on selected duration toggle
-- Pro and Elite card CTAs to reflect selected duration
-- Credit packs section: keep ₹99/50, ₹199/150, ₹499/500 — no changes
-- Soft upsell nudge in chat — keep existing, no changes
+- HomeScreen: Connect action passes matched profile + aiFirstMessage flag to Chat
+- ChatScreen: render overlay on empty chat when flag is set
 
 ### Remove
-- Static flat-price display (replace with toggle-driven display)
+- Nothing
 
 ## Implementation Plan
-1. Add a `duration` state ('daily' | 'weekly' | 'monthly') to the pricing overlay component
-2. Render toggle pill (Daily / Weekly / Monthly) at top of overlay
-3. Map each plan+duration to its price; hide Daily option display for Elite (show "—" or disable)
-4. Show "Most Popular" on Pro Monthly, "Best Value" on Elite Monthly based on selected toggle
-5. Update CTA button text dynamically: "Start Pro Daily", "Go Elite Weekly", etc.
-6. Wire contextual upsell: trigger overlay open when credits hit 0 or match limit reached
-7. Keep credit packs and soft chat nudge unchanged
+1. Add AI first message suggestion generator based on profile name/interests
+2. HomeScreen Connect passes matched profile + flag to ChatScreen
+3. ChatScreen shows bottom card overlay: suggested message, Send AI message button, Write my own dismiss
+4. On Send, insert message into chat and dismiss overlay

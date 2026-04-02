@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   MOCK_CONVERSATIONS,
   MOCK_MATCHES,
+  type Match,
   type Message,
 } from "@/data/mockData";
 import {
@@ -25,6 +26,121 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+// ── AI First Message ──────────────────────────────────────────────────────────
+
+const AI_TEMPLATES = [
+  (name: string, interest: string) =>
+    `Hey ${name}, your thing with ${interest} seriously caught my eye 👀 — what's the most underrated part of it?`,
+  (name: string, interest: string) =>
+    `Okay ${name}, I have to know — ${interest}? Tell me everything. 😄`,
+  (name: string, interest: string) =>
+    `${name}! A fellow ${interest} person? We might be the same human. What got you into it?`,
+  (_name: string, interest: string) =>
+    `Hot take incoming: ${interest} is genuinely one of the best things. Agree or disagree? 👀`,
+  (name: string, interest: string) =>
+    `I saw ${interest} on your profile and had to say hi, ${name}. What's your current obsession in that space?`,
+  (name: string, _interest: string) =>
+    `${name}, your bio gave me way too many questions. Where do we even start? 😄`,
+  (name: string, interest: string) =>
+    `${interest} AND ${name}? This is already my favourite match today.`,
+  (name: string, interest: string) =>
+    `Serious question for ${name}: ${interest} fan — what would you recommend to a complete beginner?`,
+  (name: string, _interest: string) =>
+    `${name} — skipping the small talk. What's been the best part of your week so far?`,
+  (name: string, interest: string) =>
+    `I feel like anyone who's into ${interest} has excellent taste, so — hey ${name} 👋`,
+];
+
+function getAiFirstMessage(name: string, interests: string[]): string {
+  const interest = interests[0] ?? "your interests";
+  const idx = (name.charCodeAt(0) + interests.length) % AI_TEMPLATES.length;
+  return AI_TEMPLATES[idx](name, interest);
+}
+
+function AiFirstMessageOverlay({
+  profile,
+  onSend,
+  onDismiss,
+}: {
+  profile: Match;
+  onSend: (text: string) => void;
+  onDismiss: () => void;
+}) {
+  const suggestion = getAiFirstMessage(profile.name, profile.interests);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+        onClick={onDismiss}
+      />
+      {/* Slide-up card */}
+      <motion.div
+        data-ocid="chat.ai_first_message.panel"
+        initial={{ y: "100%", opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", stiffness: 380, damping: 34 }}
+        className="absolute bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-border px-5 pb-8 pt-5"
+        style={{ background: "oklch(0.11 0.008 270)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="w-9 h-1 rounded-full bg-white/20 mx-auto mb-4" />
+
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-base">✨</span>
+          <p className="text-sm font-bold text-white">
+            AI suggests a first message
+          </p>
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
+            1 credit
+          </span>
+        </div>
+
+        {/* Suggestion card */}
+        <div
+          className="rounded-2xl border border-white/10 px-4 py-3.5 mb-5"
+          style={{ background: "oklch(0.16 0.01 270)" }}
+        >
+          <p className="text-sm text-white/90 leading-relaxed italic">
+            &ldquo;{suggestion}&rdquo;
+          </p>
+        </div>
+
+        {/* Primary action */}
+        <button
+          type="button"
+          data-ocid="chat.ai_first_message.primary_button"
+          onClick={() => onSend(suggestion)}
+          className="w-full py-3.5 rounded-2xl font-bold text-sm text-white mb-3 active:scale-[0.98] transition-transform"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.55 0.22 290), oklch(0.50 0.25 310))",
+          }}
+        >
+          Send AI message
+        </button>
+
+        {/* Secondary */}
+        <button
+          type="button"
+          data-ocid="chat.ai_first_message.cancel_button"
+          onClick={onDismiss}
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Write my own
+        </button>
+      </motion.div>
+    </>
+  );
+}
 
 const SIMULATED_REPLIES = [
   "Haha that's so true 😄",
@@ -294,11 +410,47 @@ function AIAssistantPanel({
 
 export function ChatScreen({
   onOpenPricing,
+  aiFirstMessageProfile,
+  onClearAiFirstMessage,
 }: {
   onOpenPricing: () => void;
+  aiFirstMessageProfile?: Match | null;
+  onClearAiFirstMessage?: () => void;
 }) {
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
   const [conversations, setConversations] = useState(MOCK_CONVERSATIONS);
+  const [showAiFirstMessage, setShowAiFirstMessage] = useState(false);
+
+  // When a new match is passed in, open or create their conversation and show AI overlay
+  const prevAiProfile = useRef<string | null>(null);
+  useEffect(() => {
+    if (!aiFirstMessageProfile) return;
+    if (prevAiProfile.current === aiFirstMessageProfile.id) return;
+    prevAiProfile.current = aiFirstMessageProfile.id;
+    // Find existing convo or create a new empty one
+    const existingConvo = conversations.find(
+      (c) => c.match.id === aiFirstMessageProfile.id,
+    );
+    if (existingConvo) {
+      setActiveConvoId(existingConvo.id);
+    } else {
+      const newConvo = {
+        id: `convo-${aiFirstMessageProfile.id}`,
+        match: {
+          id: aiFirstMessageProfile.id,
+          name: aiFirstMessageProfile.name,
+          photo: aiFirstMessageProfile.photo,
+        },
+        messages: [],
+        lastMessage: "",
+        lastTime: "now",
+        unread: 0,
+      };
+      setConversations((prev) => [newConvo, ...prev]);
+      setActiveConvoId(newConvo.id);
+    }
+    setShowAiFirstMessage(true);
+  }, [aiFirstMessageProfile, conversations]);
 
   const activeConvo = conversations.find((c) => c.id === activeConvoId);
 
@@ -363,6 +515,12 @@ export function ChatScreen({
         onSend={handleSend}
         onSimulatedReply={() => handleSimulatedReply(activeConvo.id)}
         onOpenPricing={onOpenPricing}
+        showAiFirstMessage={showAiFirstMessage}
+        aiFirstMessageProfile={aiFirstMessageProfile}
+        onDismissAiFirstMessage={() => {
+          setShowAiFirstMessage(false);
+          onClearAiFirstMessage?.();
+        }}
       />
     );
   }
@@ -426,12 +584,18 @@ function ChatDetail({
   onSend,
   onSimulatedReply,
   onOpenPricing,
+  showAiFirstMessage,
+  aiFirstMessageProfile,
+  onDismissAiFirstMessage,
 }: {
   conversation: (typeof MOCK_CONVERSATIONS)[0];
   onBack: () => void;
   onSend: (text: string) => void;
   onSimulatedReply: () => void;
   onOpenPricing: () => void;
+  showAiFirstMessage?: boolean;
+  aiFirstMessageProfile?: Match | null;
+  onDismissAiFirstMessage?: () => void;
 }) {
   const [input, setInput] = useState("");
   const [showAIPanel, setShowAIPanel] = useState(false);
@@ -665,6 +829,22 @@ function ChatDetail({
           </div>
         </div>
       </div>
+
+      {/* AI First Message Overlay */}
+      <AnimatePresence>
+        {showAiFirstMessage &&
+          aiFirstMessageProfile &&
+          conversation.messages.length === 0 && (
+            <AiFirstMessageOverlay
+              profile={aiFirstMessageProfile}
+              onSend={(text) => {
+                onSend(text);
+                onDismissAiFirstMessage?.();
+              }}
+              onDismiss={() => onDismissAiFirstMessage?.()}
+            />
+          )}
+      </AnimatePresence>
 
       {/* AI Assistant Panel */}
       <AnimatePresence>
