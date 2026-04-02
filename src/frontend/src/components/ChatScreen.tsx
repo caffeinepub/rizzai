@@ -27,6 +27,86 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+// ── Conversation Health Meter ─────────────────────────────────────────────────
+
+type HealthStatus = "good" | "normal" | "dying";
+
+const HEALTH_CONFIG: Record<
+  HealthStatus,
+  { emoji: string; label: string; bg: string; text: string; border: string }
+> = {
+  good: {
+    emoji: "🔥",
+    label: "Good",
+    bg: "bg-orange-500/15",
+    text: "text-orange-400",
+    border: "border-orange-500/30",
+  },
+  normal: {
+    emoji: "😐",
+    label: "Normal",
+    bg: "bg-yellow-500/15",
+    text: "text-yellow-400",
+    border: "border-yellow-500/30",
+  },
+  dying: {
+    emoji: "❄️",
+    label: "Dying",
+    bg: "bg-blue-500/15",
+    text: "text-blue-400",
+    border: "border-blue-500/30",
+  },
+};
+
+function computeHealth(messages: Message[]): HealthStatus {
+  if (messages.length === 0) return "dying";
+
+  // Check last 6 messages for back-and-forth
+  const recent = messages.slice(-6);
+  const senders = recent.map((m) => m.senderId);
+
+  // Count consecutive "me" messages at the end (unanswered streak)
+  let myStreak = 0;
+  for (let i = senders.length - 1; i >= 0; i--) {
+    if (senders[i] === "me") myStreak++;
+    else break;
+  }
+
+  // Count alternations in recent window
+  let alternations = 0;
+  for (let i = 1; i < senders.length; i++) {
+    if (senders[i] !== senders[i - 1]) alternations++;
+  }
+
+  // Last message is from them → engaged
+  const lastFromThem = messages[messages.length - 1].senderId === "them";
+
+  if (myStreak >= 3) return "dying";
+  if (lastFromThem && alternations >= 2) return "good";
+  if (lastFromThem || alternations >= 1) return "normal";
+  if (myStreak >= 2) return "dying";
+  return "normal";
+}
+
+function ConversationHealthMeter({ messages }: { messages: Message[] }) {
+  const status = computeHealth(messages);
+  const cfg = HEALTH_CONFIG[status];
+
+  return (
+    <motion.div
+      key={status}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${cfg.bg} ${cfg.text} ${cfg.border} flex-shrink-0`}
+      title={`Conversation health: ${cfg.label}`}
+    >
+      <span className="leading-none">{cfg.emoji}</span>
+      <span>{cfg.label}</span>
+    </motion.div>
+  );
+}
+
 // ── AI First Message ──────────────────────────────────────────────────────────
 
 const AI_TEMPLATES = [
@@ -691,6 +771,8 @@ function ChatDetail({
           </div>
           <p className="text-xs text-green-400">Online</p>
         </div>
+        {/* Conversation Health Meter */}
+        <ConversationHealthMeter messages={conversation.messages} />
         {/* More options */}
         <button
           type="button"
