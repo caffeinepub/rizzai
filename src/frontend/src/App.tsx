@@ -77,6 +77,7 @@ export default function App() {
                 onConnect={handleConnect}
                 connectedIds={connectedIds}
                 onGoToDiscover={() => setActiveTab("discover")}
+                onOpenPricing={() => setShowPricing(true)}
               />
             )}
             {activeTab === "discover" && <DiscoverScreen />}

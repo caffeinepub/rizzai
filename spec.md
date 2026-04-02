@@ -1,28 +1,33 @@
-# RizzAI — Monetization System (Version 14)
+# RizzAI Monetization v2
 
 ## Current State
-App has Login, onboarding flows, Home, Discover, Chat, Profile screens. Profile has a simple premium banner ('RizzAI Premium / Upgrade' button) that does nothing. Chat has an AI assistant panel (✨ button) with suggestion modes. No pricing, no credit system, no upsell flows exist.
+Monetization overlay exists with Free / Pro ₹599 / Elite ₹1199 flat pricing cards, credit packs, soft upsell nudge in chat, and AI panel credit counter.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **PricingScreen** component: full-screen modal/sheet showing 3 plan cards (Free, Pro ₹599/mo, Elite ₹1199/mo) with benefit-focused copy, no hard pressure. Accessible from Profile > 'Premium' settings row and from the premium banner.
-- **CreditPacksSection** inside PricingScreen: three credit pack options (₹99→50 credits, ₹199→150, ₹499→500). Framed as "top-up when needed."
-- **Soft upsell nudge in ChatScreen**: a subtle banner that appears after the user sends 2+ messages in a conversation, with text "✨ Use AI to improve this reply" and a small CTA button. Non-blocking, dismissable.
-- **AI credit counter** in the AI assistant panel header: show remaining free credits (e.g. "5 credits left") with a small 'Get more' link that opens PricingScreen.
-- **Value messaging** throughout: benefit-first language — "Get better replies", "Increase your chances", "Write messages that get responses".
+- Duration toggle (Daily / Weekly / Monthly) on the pricing overlay
+- Pro plan: Daily ₹49, Weekly ₹199, Monthly ₹599
+- Elite plan: Weekly ₹299, Monthly ₹1199 (no daily option — hide daily toggle state for Elite)
+- "Most Popular" badge on Pro Monthly
+- "Best Value" badge on Elite Monthly
+- Value-based messaging per plan: "Get better replies", "Increase your chances"
+- Contextual upsell trigger: when user runs out of credits, wants more matches, or is active in chat
 
 ### Modify
-- **ProfileScreen**: wire the premium banner 'Upgrade' button and the 'Premium' settings row to open PricingScreen.
-- **ChatScreen AI panel**: add credit counter in panel header; show soft upsell nudge after engagement threshold.
+- Pricing cards to show dynamic price based on selected duration toggle
+- Pro and Elite card CTAs to reflect selected duration
+- Credit packs section: keep ₹99/50, ₹199/150, ₹499/500 — no changes
+- Soft upsell nudge in chat — keep existing, no changes
 
 ### Remove
-- Nothing removed.
+- Static flat-price display (replace with toggle-driven display)
 
 ## Implementation Plan
-1. Create `PricingScreen.tsx` with plan cards (Free/Pro/Elite), benefit lists, and credit packs section. Dark theme, card-based layout, clean spacing.
-2. Add `showPricing` state in `App.tsx`; pass `onOpenPricing` callback down to ProfileScreen and ChatScreen.
-3. Wire Profile premium banner + settings row to `onOpenPricing`.
-4. Add soft upsell nudge in ChatScreen — appears after 2 messages sent, dismissable with X, opens pricing on CTA tap.
-5. Add credit counter in AI assistant panel header.
-6. All copy is value-focused, never pressuring.
+1. Add a `duration` state ('daily' | 'weekly' | 'monthly') to the pricing overlay component
+2. Render toggle pill (Daily / Weekly / Monthly) at top of overlay
+3. Map each plan+duration to its price; hide Daily option display for Elite (show "—" or disable)
+4. Show "Most Popular" on Pro Monthly, "Best Value" on Elite Monthly based on selected toggle
+5. Update CTA button text dynamically: "Start Pro Daily", "Go Elite Weekly", etc.
+6. Wire contextual upsell: trigger overlay open when credits hit 0 or match limit reached
+7. Keep credit packs and soft chat nudge unchanged
