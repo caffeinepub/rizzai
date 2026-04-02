@@ -241,6 +241,53 @@ const STARTER_CHIPS = [
   "Last show you binged? 📺",
 ];
 
+// ── Conversation Suggestion Cards ─────────────────────────────────────────────
+
+const CONVERSATION_SUGGESTIONS = [
+  "Ask about their weekend 🌅",
+  "Talk about hobbies 🎨",
+  "Favorite travel memory? ✈️",
+  "What's your hot take? 🔥",
+  "Coffee or tea person? ☕",
+  "What are you watching lately? 📺",
+  "Any fun plans coming up? 🎉",
+  "Best meal you've had recently? 🍜",
+  "Dream destination? 🌏",
+  "Morning person or night owl? 🌙",
+];
+
+function ConversationSuggestionCards({
+  onSelect,
+}: {
+  onSelect: (text: string) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      className="pt-2 px-4"
+    >
+      <div
+        className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {CONVERSATION_SUGGESTIONS.map((suggestion) => (
+          <button
+            type="button"
+            key={suggestion}
+            data-ocid="chat.suggestion.button"
+            onClick={() => onSelect(suggestion)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary/50 border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/80 active:scale-95 transition-all"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 const REPORT_REASONS = [
   "Inappropriate content",
   "Spam",
@@ -819,7 +866,7 @@ function ChatDetail({
         <div ref={bottomRef} />
       </div>
 
-      {/* Soft upsell nudge + Input area */}
+      {/* Soft upsell nudge + Suggestion cards + Input area */}
       <div className="flex-shrink-0 border-t border-border">
         {/* Soft Upsell Nudge */}
         <AnimatePresence>
@@ -867,6 +914,16 @@ function ChatDetail({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Conversation Suggestion Cards */}
+        {conversation.messages.length > 0 && !showAIPanel && (
+          <ConversationSuggestionCards
+            onSelect={(text) => {
+              setInput(text);
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+          />
+        )}
 
         {/* Input */}
         <div className="px-4 py-3">
