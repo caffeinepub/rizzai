@@ -1,13 +1,27 @@
+import { TrustBadge } from "@/components/TrustBadge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Match } from "@/data/mockData";
+import { getTrustBadge } from "@/utils/trustUtils";
 import {
   ArrowLeft,
   Bookmark,
   MapPin,
   MessageCircle,
+  MoreVertical,
   SkipForward,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   profile: Match;
@@ -26,29 +40,12 @@ function getActivityStatus(
   return null;
 }
 
-function getTrustLabel(score: number): {
-  label: string;
-  color: string;
-  barColor: string;
-} {
-  if (score >= 80)
-    return {
-      label: "High Trust",
-      color: "text-emerald-400",
-      barColor: "bg-emerald-500",
-    };
-  if (score >= 60)
-    return {
-      label: "Good Trust",
-      color: "text-amber-400",
-      barColor: "bg-amber-500",
-    };
-  return {
-    label: "Building Trust",
-    color: "text-muted-foreground",
-    barColor: "bg-secondary",
-  };
-}
+const REPORT_REASONS = [
+  "Inappropriate content",
+  "Spam",
+  "Fake profile",
+  "Harassment",
+];
 
 export function ProfileDetailScreen({
   profile,
@@ -58,13 +55,31 @@ export function ProfileDetailScreen({
   onSkip,
 }: Props) {
   const activity = getActivityStatus(profile.lastActive);
-  const trust = getTrustLabel(profile.trustScore);
+  const trust = getTrustBadge(profile.trustScore);
   const initials = profile.name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+  const handleReport = () => {
+    setReportOpen(false);
+    setSelectedReason(null);
+    toast.success("Report submitted");
+    onClose();
+  };
+
+  const handleBlock = () => {
+    setBlockOpen(false);
+    toast.success(`${profile.name} blocked`);
+    onClose();
+  };
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -124,13 +139,29 @@ export function ProfileDetailScreen({
             <ArrowLeft className="w-4 h-4 text-foreground" />
           </button>
 
-          {/* Activity badge top-right */}
+          {/* More options button top-right */}
+          <button
+            type="button"
+            data-ocid="profile.open_modal_button"
+            onClick={() => setMenuOpen(true)}
+            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+            style={{
+              background: "oklch(0.10 0.01 255 / 0.75)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid oklch(0.22 0.022 255 / 0.5)",
+            }}
+            aria-label="More options"
+          >
+            <MoreVertical className="w-4 h-4 text-foreground" />
+          </button>
+
+          {/* Activity badge */}
           <AnimatePresence>
             {activity && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                className="absolute top-16 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                 style={{
                   background: "oklch(0.10 0.01 255 / 0.80)",
                   backdropFilter: "blur(12px)",
@@ -187,17 +218,7 @@ export function ProfileDetailScreen({
               <span className="text-4xl font-black text-foreground">
                 {profile.trustScore}
               </span>
-              <span
-                className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-                  profile.trustScore >= 80
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                    : profile.trustScore >= 60
-                      ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                      : "bg-secondary border-border text-muted-foreground"
-                }`}
-              >
-                {trust.label}
-              </span>
+              <TrustBadge score={profile.trustScore} size="md" />
             </div>
             {/* Progress bar */}
             <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -206,14 +227,6 @@ export function ProfileDetailScreen({
                 animate={{ width: `${profile.trustScore}%` }}
                 transition={{ delay: 0.3, duration: 0.7, ease: "easeOut" }}
                 className={`h-full rounded-full ${trust.barColor}`}
-                style={{
-                  boxShadow:
-                    profile.trustScore >= 80
-                      ? "0 0 10px oklch(0.6 0.2 145 / 0.5)"
-                      : profile.trustScore >= 60
-                        ? "0 0 10px oklch(0.7 0.2 75 / 0.5)"
-                        : "none",
-                }}
               />
             </div>
           </motion.div>
@@ -374,6 +387,153 @@ export function ProfileDetailScreen({
           </button>
         </div>
       </div>
+
+      {/* More options bottom sheet */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-40"
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              className="absolute bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-border px-5 pb-8 pt-4"
+              style={{ background: "oklch(0.13 0.014 255)" }}
+              data-ocid="profile.sheet"
+            >
+              <div className="flex justify-center mb-4">
+                <div className="w-10 h-1 rounded-full bg-border" />
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3 px-1">
+                Options for {profile.name}
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  data-ocid="profile.open_modal_button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setReportOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-secondary/60 border border-border hover:bg-secondary transition-colors text-left"
+                >
+                  <span className="text-base">🚩</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    Report
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  data-ocid="profile.delete_button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setBlockOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/15 transition-colors text-left"
+                >
+                  <span className="text-base">🚫</span>
+                  <span className="text-sm font-semibold text-rose-400">
+                    Block
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Report Dialog */}
+      <AlertDialog open={reportOpen} onOpenChange={setReportOpen}>
+        <AlertDialogContent
+          className="border-border"
+          style={{ background: "oklch(0.14 0.014 255)" }}
+          data-ocid="profile.dialog"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">
+              Report {profile.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Select a reason for your report.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-wrap gap-2 py-2">
+            {REPORT_REASONS.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                data-ocid="profile.radio"
+                onClick={() => setSelectedReason(reason)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  selectedReason === reason
+                    ? "bg-primary/20 border-primary/50 text-primary"
+                    : "bg-secondary border-border text-muted-foreground hover:border-border/80"
+                }`}
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              data-ocid="profile.cancel_button"
+              className="border-border text-muted-foreground"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <button
+              type="button"
+              data-ocid="profile.confirm_button"
+              disabled={!selectedReason}
+              onClick={handleReport}
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+            >
+              Submit Report
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Block Dialog */}
+      <AlertDialog open={blockOpen} onOpenChange={setBlockOpen}>
+        <AlertDialogContent
+          className="border-border"
+          style={{ background: "oklch(0.14 0.014 255)" }}
+          data-ocid="profile.dialog"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">
+              Block {profile.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              They won't be able to contact you or see your profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              data-ocid="profile.cancel_button"
+              className="border-border text-muted-foreground"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <button
+              type="button"
+              data-ocid="profile.delete_button"
+              onClick={handleBlock}
+              className="px-4 py-2 rounded-md bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition-all"
+            >
+              Block
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

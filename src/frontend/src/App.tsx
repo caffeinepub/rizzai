@@ -1,7 +1,11 @@
 import { ChatScreen } from "@/components/ChatScreen";
 import { DiscoverScreen } from "@/components/DiscoverScreen";
 import { HomeScreen } from "@/components/HomeScreen";
+import { IdentityPreferenceFlow } from "@/components/IdentityPreferenceFlow";
+import { LoginScreen } from "@/components/LoginScreen";
+import { PricingScreen } from "@/components/PricingScreen";
 import { ProfileScreen } from "@/components/ProfileScreen";
+import { ProfileSetupFlow } from "@/components/ProfileSetupFlow";
 import { Toaster } from "@/components/ui/sonner";
 import { Compass, Home, MessageCircle, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -17,12 +21,43 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isProfileSetup, setIsProfileSetup] = useState(false);
+  const [isPreferenceSetup, setIsPreferenceSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+  const [showPricing, setShowPricing] = useState(false);
 
   const handleConnect = (matchId: string) => {
     setConnectedIds((prev) => new Set([...prev, matchId]));
   };
+
+  if (!isLoggedIn) {
+    return (
+      <>
+        <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (!isProfileSetup) {
+    return (
+      <>
+        <ProfileSetupFlow onComplete={() => setIsProfileSetup(true)} />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (!isPreferenceSetup) {
+    return (
+      <>
+        <IdentityPreferenceFlow onComplete={() => setIsPreferenceSetup(true)} />
+        <Toaster />
+      </>
+    );
+  }
 
   return (
     <div className="h-svh w-screen bg-background flex flex-col overflow-hidden">
@@ -41,11 +76,16 @@ export default function App() {
               <HomeScreen
                 onConnect={handleConnect}
                 connectedIds={connectedIds}
+                onGoToDiscover={() => setActiveTab("discover")}
               />
             )}
             {activeTab === "discover" && <DiscoverScreen />}
-            {activeTab === "chat" && <ChatScreen />}
-            {activeTab === "profile" && <ProfileScreen />}
+            {activeTab === "chat" && (
+              <ChatScreen onOpenPricing={() => setShowPricing(true)} />
+            )}
+            {activeTab === "profile" && (
+              <ProfileScreen onOpenPricing={() => setShowPricing(true)} />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -53,7 +93,7 @@ export default function App() {
       {/* Bottom Tab Bar */}
       <nav
         data-ocid="nav.tab"
-        className="flex-shrink-0 tab-bar border-t border-border px-2 pb-safe pt-2"
+        className="flex-shrink-0 tab-bar border-t border-border px-2 pt-2"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
       >
         <div className="flex items-center justify-around">
@@ -66,38 +106,20 @@ export default function App() {
                 key={tab.id}
                 data-ocid={`nav.${tab.id}.tab`}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex flex-col items-center gap-1 py-1 px-3 relative"
+                className="flex flex-col items-center gap-1 py-1 px-4"
                 aria-label={tab.label}
               >
-                <div className="relative">
-                  <Icon
-                    className={`w-5 h-5 transition-all duration-200 ${
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    }`}
-                    style={
-                      isActive
-                        ? {
-                            filter:
-                              "drop-shadow(0 0 8px oklch(0.7 0.25 280)) drop-shadow(0 0 4px oklch(0.75 0.22 280))",
-                          }
-                        : undefined
-                    }
-                  />
-                  {isActive && (
-                    <motion.div
-                      layoutId="tab-indicator"
-                      className="absolute -inset-2 rounded-xl bg-primary/15"
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 40,
-                      }}
-                    />
-                  )}
-                </div>
+                <Icon
+                  className={`w-5 h-5 transition-colors duration-200 ${
+                    isActive ? "text-white" : "text-zinc-500"
+                  }`}
+                  strokeWidth={isActive ? 2.5 : 1.75}
+                />
                 <span
-                  className={`text-[10px] font-medium transition-colors duration-200 ${
-                    isActive ? "text-primary" : "text-muted-foreground"
+                  className={`text-[10px] transition-colors duration-200 ${
+                    isActive
+                      ? "text-white font-semibold"
+                      : "text-zinc-500 font-medium"
                   }`}
                 >
                   {tab.label}
@@ -107,6 +129,11 @@ export default function App() {
           })}
         </div>
       </nav>
+
+      {/* Pricing Overlay */}
+      <AnimatePresence>
+        {showPricing && <PricingScreen onClose={() => setShowPricing(false)} />}
+      </AnimatePresence>
 
       <Toaster />
     </div>

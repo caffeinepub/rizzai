@@ -1,27 +1,28 @@
-# RizzAI
+# RizzAI — Monetization System (Version 14)
 
 ## Current State
-- Bottom nav exists in App.tsx with 4 tabs (Home, Discover, Chat, Profile) using a spring-animated indicator with `bg-primary/15` background highlight
-- Discover cards show: avatar, name/age, activity badge, bio, interests, trust score, response time, and a "Start Chat" button
-- No match % displayed on cards
-- Active tab uses a subtle bg fill, no neon glow
+App has Login, onboarding flows, Home, Discover, Chat, Profile screens. Profile has a simple premium banner ('RizzAI Premium / Upgrade' button) that does nothing. Chat has an AI assistant panel (✨ button) with suggestion modes. No pricing, no credit system, no upsell flows exist.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Soft neon glow effect on active tab icon (box-shadow / drop-shadow with primary color)
-- Match % displayed prominently on each Discover profile card
-- "Connect" button replacing "Start Chat" on profile cards (tapping card still opens full profile)
+- **PricingScreen** component: full-screen modal/sheet showing 3 plan cards (Free, Pro ₹599/mo, Elite ₹1199/mo) with benefit-focused copy, no hard pressure. Accessible from Profile > 'Premium' settings row and from the premium banner.
+- **CreditPacksSection** inside PricingScreen: three credit pack options (₹99→50 credits, ₹199→150, ₹499→500). Framed as "top-up when needed."
+- **Soft upsell nudge in ChatScreen**: a subtle banner that appears after the user sends 2+ messages in a conversation, with text "✨ Use AI to improve this reply" and a small CTA button. Non-blocking, dismissable.
+- **AI credit counter** in the AI assistant panel header: show remaining free credits (e.g. "5 credits left") with a small 'Get more' link that opens PricingScreen.
+- **Value messaging** throughout: benefit-first language — "Get better replies", "Increase your chances", "Write messages that get responses".
 
 ### Modify
-- Bottom nav: active tab should show a soft neon glow on the icon (not just a bg fill)
-- Discover card: show match % as a visible badge/stat next to name or in a meta row
-- Discover card action button label: "Connect" instead of "Start Chat"
+- **ProfileScreen**: wire the premium banner 'Upgrade' button and the 'Premium' settings row to open PricingScreen.
+- **ChatScreen AI panel**: add credit counter in panel header; show soft upsell nudge after engagement threshold.
 
 ### Remove
-- Nothing removed; existing layout preserved
+- Nothing removed.
 
 ## Implementation Plan
-1. In App.tsx: update active tab indicator to use a neon glow (filter: drop-shadow or box-shadow with primary OKLCH color) on the icon instead of / in addition to the bg fill
-2. In DiscoverScreen.tsx ProfileCard: add `profile.compatibility` displayed as "{match}% match" in the meta row
-3. In DiscoverScreen.tsx ProfileCard: rename button from "Start Chat" to "Connect" (keep same onClick behavior — open profile detail)
+1. Create `PricingScreen.tsx` with plan cards (Free/Pro/Elite), benefit lists, and credit packs section. Dark theme, card-based layout, clean spacing.
+2. Add `showPricing` state in `App.tsx`; pass `onOpenPricing` callback down to ProfileScreen and ChatScreen.
+3. Wire Profile premium banner + settings row to `onOpenPricing`.
+4. Add soft upsell nudge in ChatScreen — appears after 2 messages sent, dismissable with X, opens pricing on CTA tap.
+5. Add credit counter in AI assistant panel header.
+6. All copy is value-focused, never pressuring.

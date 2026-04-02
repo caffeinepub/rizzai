@@ -1,4 +1,5 @@
 import { ProfileDetailScreen } from "@/components/ProfileDetailScreen";
+import { TrustBadge } from "@/components/TrustBadge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MOCK_MATCHES, type Match } from "@/data/mockData";
@@ -198,6 +199,9 @@ function ProfileCard({
     .toUpperCase()
     .slice(0, 2);
 
+  const isLowTrust = profile.trustScore < 40;
+  const isHighTrust = profile.trustScore >= 70;
+
   return (
     <motion.div
       data-ocid={`discover.item.${index + 1}`}
@@ -287,12 +291,20 @@ function ProfileCard({
           ))}
         </div>
 
-        {/* Meta row: trust + response time + compatibility */}
+        {/* Meta row: trust badge/status + response time + compatibility */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-            {profile.trustScore} trust
-          </span>
+          {isHighTrust ? (
+            <TrustBadge score={profile.trustScore} size="sm" />
+          ) : isLowTrust ? (
+            <span className="text-[11px] text-rose-400/70 font-medium">
+              Limited reach
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              {profile.trustScore} trust
+            </span>
+          )}
           {profile.responseTimeMinutes < 30 && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <Zap className="w-3 h-3 text-primary" />~
