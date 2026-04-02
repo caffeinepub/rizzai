@@ -14,6 +14,16 @@ import { useState } from "react";
 
 type Tab = "home" | "discover" | "chat" | "profile";
 
+interface MatchingPreferences {
+  identity: string;
+  connectWith: string[];
+  intent: string[];
+  ageRange: [number, number];
+  distance: string;
+  interestMatch: string;
+  vibePreference: string[];
+}
+
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "home", label: "Home", icon: Home },
   { id: "discover", label: "Discover", icon: Compass },
@@ -25,6 +35,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileSetup, setIsProfileSetup] = useState(false);
   const [isPreferenceSetup, setIsPreferenceSetup] = useState(false);
+  const [matchingPreferences, setMatchingPreferences] =
+    useState<MatchingPreferences | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [showPricing, setShowPricing] = useState(false);
@@ -47,6 +59,16 @@ export default function App() {
     setBoostEndsAt(endsAt);
   };
 
+  const initialDiscoverFilters = matchingPreferences
+    ? {
+        ageMin: matchingPreferences.ageRange[0],
+        ageMax: matchingPreferences.ageRange[1],
+        genders: matchingPreferences.connectWith,
+        interests: [] as string[],
+        minMatch: 0,
+      }
+    : undefined;
+
   if (!isLoggedIn) {
     return (
       <>
@@ -68,7 +90,12 @@ export default function App() {
   if (!isPreferenceSetup) {
     return (
       <>
-        <IdentityPreferenceFlow onComplete={() => setIsPreferenceSetup(true)} />
+        <IdentityPreferenceFlow
+          onComplete={(prefs) => {
+            setMatchingPreferences(prefs);
+            setIsPreferenceSetup(true);
+          }}
+        />
         <Toaster />
       </>
     );
@@ -98,7 +125,9 @@ export default function App() {
                 onBoostActivate={(endsAt) => handleActivateBoost(endsAt)}
               />
             )}
-            {activeTab === "discover" && <DiscoverScreen />}
+            {activeTab === "discover" && (
+              <DiscoverScreen initialFilters={initialDiscoverFilters} />
+            )}
             {activeTab === "chat" && (
               <ChatScreen
                 onOpenPricing={() => setShowPricing(true)}

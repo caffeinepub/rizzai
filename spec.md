@@ -1,29 +1,26 @@
 # RizzAI
 
 ## Current State
-The app has swipe-based Home screen with match cards, AI First Message overlay after swiping right, chat with AI assistant panel, trust system, monetization, Smart Boost, Who Viewed You, and conversation health meter.
+- `IdentityPreferenceFlow` collects 7 steps: identity, connectWith, intent, ageRange, distance, interestMatch, vibePreference. Calls `onComplete(prefs: MatchingPreferences)` but App.tsx discards the prefs (just sets `isPreferenceSetup = true`).
+- `DiscoverScreen` has its own internal `FilterState` (ageMin, ageMax, genders, interests, minMatch) initialized to defaults. No external props for pre-filling.
+- Filters work correctly once applied manually.
 
 ## Requested Changes (Diff)
 
 ### Add
-- AI Match Insights component: a card/section that surfaces shared interests and similarities between the current user and a match
-- Displayed in two places:
-  1. On the swipe card (Home screen) — compact inline insight like "You both like travel + fitness"
-  2. On the Profile Detail screen — a more prominent insight card with shared tags highlighted
-- Mock insight data derived from the profile's interest tags compared to the user's own interests
-- Insight labels styled as small pills/chips with an emoji or icon prefix (e.g. ✈️ Travel, 💪 Fitness)
-- A short headline copy: "You both like [X + Y]" or "X things in common"
+- `matchingPreferences` state in App.tsx to store what user set during Identity/Preference flow.
+- `initialFilters` prop on `DiscoverScreen` to accept pre-filled filter values.
+- Mapping logic: `prefs.ageRange` → ageMin/ageMax; `prefs.connectWith` → genders; `prefs.vibePreference` (interests from that step) → interests (skipped if too abstract); keep other onboarding fields available for future use.
+- A subtle "Based on your preferences" note in the filter drawer when filters are pre-filled.
 
 ### Modify
-- Home swipe cards: add a small match insight line below the bio/tags
-- Profile Detail screen: add an "AI Insights" card section above the sticky CTA button
+- `App.tsx`: change `onComplete={() => setIsPreferenceSetup(true)}` to `onComplete={(prefs) => { setMatchingPreferences(prefs); setIsPreferenceSetup(true); }}`. Pass derived initial filters to `DiscoverScreen`.
+- `DiscoverScreen`: accept optional `initialFilters?: Partial<FilterState>` prop. Use it to set initial `appliedFilters` state.
+- `IdentityPreferenceFlow`: no changes needed; already calls `onComplete(prefs)`.
 
 ### Remove
-- Nothing removed
+- Nothing.
 
 ## Implementation Plan
-1. Define a shared `getMatchInsights(userInterests, matchInterests)` utility that returns overlapping tags
-2. Add compact insight line to Home swipe cards (1 line, truncated)
-3. Add AI Match Insights card to Profile Detail screen with icon pills and headline
-4. Use mock user interests (travel, fitness, music, etc.) as the "current user" baseline
-5. Style consistently with dark theme — subtle accent color for insight pills
+1. Update `App.tsx`: add `matchingPreferences` state, store prefs on flow complete, derive initialFilters object, pass to DiscoverScreen.
+2. Update `DiscoverScreen`: add `initialFilters` prop, initialize `appliedFilters` state from it, show subtle "Personalized from your preferences" hint in the filter header when pre-filled.

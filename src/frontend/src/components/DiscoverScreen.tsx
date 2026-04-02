@@ -60,6 +60,14 @@ function isDefaultFilters(f: FilterState): boolean {
   );
 }
 
+function hasPrefilledData(f: FilterState): boolean {
+  return (
+    f.genders.length > 0 ||
+    f.ageMin !== DEFAULT_FILTERS.ageMin ||
+    f.ageMax !== DEFAULT_FILTERS.ageMax
+  );
+}
+
 function getSeenIds(): Set<string> {
   try {
     const raw = sessionStorage.getItem(SEEN_KEY);
@@ -79,7 +87,17 @@ function markSeen(ids: string[]) {
   }
 }
 
-export function DiscoverScreen() {
+interface DiscoverScreenProps {
+  initialFilters?: {
+    ageMin?: number;
+    ageMax?: number;
+    genders?: string[];
+    interests?: string[];
+    minMatch?: number;
+  };
+}
+
+export function DiscoverScreen({ initialFilters }: DiscoverScreenProps) {
   const ranked = useMemo(
     () => rankProfiles(MOCK_MATCHES, VIEWER_GENDER, [...VIEWER_LOOKING_FOR]),
     [],
@@ -94,12 +112,17 @@ export function DiscoverScreen() {
   const [showHighMatchOnly, setShowHighMatchOnly] = useState(false);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>({
-    ...DEFAULT_FILTERS,
+    ageMin: initialFilters?.ageMin ?? DEFAULT_FILTERS.ageMin,
+    ageMax: initialFilters?.ageMax ?? DEFAULT_FILTERS.ageMax,
+    genders: initialFilters?.genders ?? DEFAULT_FILTERS.genders,
+    interests: initialFilters?.interests ?? DEFAULT_FILTERS.interests,
+    minMatch: initialFilters?.minMatch ?? DEFAULT_FILTERS.minMatch,
   });
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasActiveFilters = !isDefaultFilters(appliedFilters);
+  const isPreFilled = hasPrefilledData(appliedFilters);
 
   const filteredRanked = useMemo(() => {
     let result = ranked;
@@ -429,6 +452,7 @@ export function DiscoverScreen() {
         {showFilterDrawer && (
           <FilterDrawer
             current={appliedFilters}
+            isPreFilled={isPreFilled}
             onApply={(filters) => {
               setAppliedFilters(filters);
               setShowFilterDrawer(false);
@@ -475,10 +499,12 @@ export function DiscoverScreen() {
 
 function FilterDrawer({
   current,
+  isPreFilled,
   onApply,
   onClose,
 }: {
   current: FilterState;
+  isPreFilled: boolean;
   onApply: (f: FilterState) => void;
   onClose: () => void;
 }) {
@@ -543,6 +569,15 @@ function FilterDrawer({
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
+
+          {/* Pre-filled notice */}
+          {isPreFilled && (
+            <div className="px-5 pb-2">
+              <p className="text-[11px] text-muted-foreground/70">
+                ✨ Pre-filled from your preferences
+              </p>
+            </div>
+          )}
 
           <div className="px-5 space-y-6">
             {/* Age Range */}
