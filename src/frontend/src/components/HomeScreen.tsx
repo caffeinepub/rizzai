@@ -1,3 +1,4 @@
+import { ConnectBottomSheet } from "@/components/ConnectBottomSheet";
 import { Badge } from "@/components/ui/badge";
 import { MOCK_MATCHES, type Match } from "@/data/mockData";
 import {
@@ -15,6 +16,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { ProfileDetailScreen } from "./ProfileDetailScreen";
 
+const DAILY_MATCHES = MOCK_MATCHES.slice(0, 3);
+const ALL_ACTIVE_MATCHES = MOCK_MATCHES.filter(
+  (m) => Date.now() - m.lastActive.getTime() < 5 * 60 * 1000,
+);
+
 interface HomeScreenProps {
   onConnectMatch?: (match: Match) => void;
   onConnect: (matchId: string) => void;
@@ -22,6 +28,7 @@ interface HomeScreenProps {
   onGoToDiscover?: () => void;
   onOpenPricing?: () => void;
   boostEndsAt?: number | null;
+  onBoostActivate?: (endsAt: number) => void;
 }
 
 function useCountdown() {
@@ -48,8 +55,6 @@ function useCountdown() {
   return timeLeft;
 }
 
-const DAILY_MATCHES = MOCK_MATCHES.slice(0, 3);
-
 export function HomeScreen({
   onConnect,
   onConnectMatch,
@@ -57,25 +62,106 @@ export function HomeScreen({
   onGoToDiscover,
   onOpenPricing,
   boostEndsAt,
+  onBoostActivate,
 }: HomeScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [detailProfile, setDetailProfile] = useState<Match | null>(null);
+  const [connectSheetProfile, setConnectSheetProfile] = useState<Match | null>(
+    null,
+  );
   const timeLeft = useCountdown();
 
-  const isBoostActive = !!boostEndsAt && boostEndsAt > Date.now();
-  const isDone = currentIndex >= DAILY_MATCHES.length;
+  // Smart Boost Popup
+  const [swipeCount, setSwipeCount] = useState(0);
+  const [smartBoostPopupVisible, setSmartBoostPopupVisible] = useState(false);
+  const hasShownBoostPopup = useRef(false);
 
-  const handleConnect = (match: Match) => {
+  // Instant Match Mode
+  const [instantMatchActive, setInstantMatchActive] = useState(false);
+  const [instantMatchSecondsLeft, setInstantMatchSecondsLeft] = useState(600);
+  const instantMatchTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+
+  const isBoostActive = !!boostEndsAt && boostEndsAt > Date.now();
+
+  const displayedMatches = instantMatchActive
+    ? ALL_ACTIVE_MATCHES
+    : DAILY_MATCHES;
+  const isDone = currentIndex >= displayedMatches.length;
+
+  // Smart Boost popup trigger
+  useEffect(() => {
+    if (swipeCount >= 3 && !isBoostActive && !hasShownBoostPopup.current) {
+      hasShownBoostPopup.current = true;
+      setSmartBoostPopupVisible(true);
+    }
+  }, [swipeCount, isBoostActive]);
+
+  // Instant Match countdown
+  useEffect(() => {
+    if (instantMatchActive) {
+      setInstantMatchSecondsLeft(600);
+      setCurrentIndex(0);
+      instantMatchTimerRef.current = setInterval(() => {
+        setInstantMatchSecondsLeft((prev) => {
+          if (prev <= 1) {
+            setInstantMatchActive(false);
+            if (instantMatchTimerRef.current)
+              clearInterval(instantMatchTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (instantMatchTimerRef.current)
+        clearInterval(instantMatchTimerRef.current);
+    }
+    return () => {
+      if (instantMatchTimerRef.current)
+        clearInterval(instantMatchTimerRef.current);
+    };
+  }, [instantMatchActive]);
+
+  const handleConnectRequest = (match: Match) => {
+    setCurrentIndex((prev) => prev + 1);
+    setSwipeCount((prev) => prev + 1);
+    setConnectSheetProfile(match);
+  };
+
+  const handleSkip = () => {
+    setCurrentIndex((prev) => prev + 1);
+    setSwipeCount((prev) => prev + 1);
+  };
+
+  const handleAIConnect = (match: Match) => {
     if (onConnectMatch) {
       onConnectMatch(match);
     } else {
       onConnect(match.id);
     }
-    setCurrentIndex((prev) => prev + 1);
   };
 
-  const handleSkip = () => {
-    setCurrentIndex((prev) => prev + 1);
+  const handleNormalConnect = (match: Match) => {
+    onConnect(match.id);
+  };
+
+  const handleBoostNow = () => {
+    const endsAt = Date.now() + 30 * 60 * 1000;
+    onBoostActivate?.(endsAt);
+    setSmartBoostPopupVisible(false);
+  };
+
+  const toggleInstantMatch = () => {
+    setInstantMatchActive((prev) => !prev);
+    if (!instantMatchActive) setCurrentIndex(0);
+  };
+
+  const formatInstantTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -91,6 +177,85 @@ export function HomeScreen({
           />
         </div>
       )}
+
+      {/* Connect Bottom Sheet */}
+      <div className="absolute inset-0 z-50 pointer-events-none">
+        <div className={connectSheetProfile ? "pointer-events-auto" : ""}>
+          <ConnectBottomSheet
+            isOpen={!!connectSheetProfile}
+            onClose={() => setConnectSheetProfile(null)}
+            profile={connectSheetProfile}
+            onAIConnect={handleAIConnect}
+            onNormalConnect={handleNormalConnect}
+          />
+        </div>
+      </div>
+
+      {/* Smart Boost Popup Overlay */}
+      <AnimatePresence>
+        {smartBoostPopupVisible && (
+          <motion.div
+            key="boost-popup-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 z-40 flex items-end"
+            style={{ background: "oklch(0 0 0 / 0.65)" }}
+            onClick={() => setSmartBoostPopupVisible(false)}
+          >
+            <motion.div
+              key="boost-popup-sheet"
+              initial={{ y: 120, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 120, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              className="w-full rounded-t-3xl p-6 pb-8"
+              style={{ background: "oklch(0.13 0.015 265)" }}
+              onClick={(e) => e.stopPropagation()}
+              data-ocid="home.boost_popup.modal"
+            >
+              <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto"
+                style={{ background: "oklch(0.55 0.22 265 / 0.2)" }}
+              >
+                <span className="text-2xl">🚀</span>
+              </div>
+              <h2 className="text-xl font-bold text-white text-center mb-2">
+                Get more matches in next 30 mins 🚀
+              </h2>
+              <p
+                className="text-sm text-center mb-6"
+                style={{ color: "oklch(0.6 0.05 265)" }}
+              >
+                Boost your profile now to get seen by more people
+              </p>
+              <button
+                type="button"
+                data-ocid="home.boost_now.primary_button"
+                onClick={handleBoostNow}
+                className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.98]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.62 0.22 290), oklch(0.52 0.22 265))",
+                }}
+              >
+                Boost Now
+              </button>
+              <button
+                type="button"
+                data-ocid="home.boost_dismiss.button"
+                onClick={() => setSmartBoostPopupVisible(false)}
+                className="w-full py-3 mt-2 text-sm font-medium text-center transition-colors"
+                style={{ color: "oklch(0.55 0.05 265)" }}
+              >
+                Maybe later
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <header className="flex items-center justify-between px-5 pt-6 pb-4 flex-shrink-0">
@@ -118,47 +283,117 @@ export function HomeScreen({
             )}
           </AnimatePresence>
         </div>
-        <button
-          type="button"
-          data-ocid="home.notifications.button"
-          className="relative w-9 h-9 rounded-xl bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell className="w-4 h-4 text-muted-foreground" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Instant Match Button */}
+          <button
+            type="button"
+            data-ocid="home.instant_match.toggle"
+            onClick={toggleInstantMatch}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-xs transition-all active:scale-95"
+            style={{
+              background: instantMatchActive
+                ? "oklch(0.72 0.18 55 / 0.2)"
+                : "oklch(0.22 0.02 265)",
+              color: instantMatchActive
+                ? "oklch(0.82 0.18 55)"
+                : "oklch(0.55 0.05 265)",
+              border: instantMatchActive
+                ? "1px solid oklch(0.72 0.18 55 / 0.5)"
+                : "1px solid oklch(0.3 0.02 265)",
+            }}
+          >
+            <Zap className="w-3 h-3" />
+            {instantMatchActive
+              ? `⚡ ${formatInstantTime(instantMatchSecondsLeft)} left`
+              : "Instant Match ⚡"}
+          </button>
+          <button
+            type="button"
+            data-ocid="home.notifications.button"
+            className="relative w-9 h-9 rounded-xl bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+          </button>
+        </div>
       </header>
+
+      {/* Instant Match active banner */}
+      <AnimatePresence>
+        {instantMatchActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="px-5 pb-2 flex-shrink-0 overflow-hidden"
+          >
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium"
+              style={{
+                background: "oklch(0.72 0.18 55 / 0.12)",
+                border: "1px solid oklch(0.72 0.18 55 / 0.3)",
+                color: "oklch(0.82 0.18 55)",
+              }}
+            >
+              <Zap className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>
+                Instant Match active — showing only users online right now
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Title section */}
       <div className="px-5 pb-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold text-foreground">Today's Matches</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {instantMatchActive ? "Active Now" : "Today's Matches"}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          You have{" "}
-          <span className="text-foreground font-semibold">
-            {DAILY_MATCHES.length} quality matches
-          </span>{" "}
-          today
-        </p>
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            <span>
-              New matches in{" "}
-              <span className="font-mono text-foreground font-semibold">
-                {timeLeft}
-              </span>
-            </span>
-          </div>
-          {!isDone && (
-            <span className="text-xs font-medium text-muted-foreground">
-              <span className="text-foreground font-semibold">
-                {currentIndex + 1}
+          {instantMatchActive ? (
+            <>
+              <span
+                className="font-semibold"
+                style={{ color: "oklch(0.82 0.18 55)" }}
+              >
+                {ALL_ACTIVE_MATCHES.length} users
               </span>{" "}
-              / {DAILY_MATCHES.length}
-            </span>
+              online right now
+            </>
+          ) : (
+            <>
+              You have{" "}
+              <span className="text-foreground font-semibold">
+                {DAILY_MATCHES.length} quality matches
+              </span>{" "}
+              today
+            </>
           )}
-        </div>
-        {!isDone && (
+        </p>
+        {!instantMatchActive && (
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="w-3.5 h-3.5" />
+              <span>
+                New matches in{" "}
+                <span className="font-mono text-foreground font-semibold">
+                  {timeLeft}
+                </span>
+              </span>
+            </div>
+            {!isDone && (
+              <span className="text-xs font-medium text-muted-foreground">
+                <span className="text-foreground font-semibold">
+                  {currentIndex + 1}
+                </span>{" "}
+                / {DAILY_MATCHES.length}
+              </span>
+            )}
+          </div>
+        )}
+        {!isDone && !instantMatchActive && (
           <div className="flex gap-1.5 mt-3">
             {DAILY_MATCHES.map((m, i) => (
               <div
@@ -179,7 +414,32 @@ export function HomeScreen({
       {/* Card area */}
       <div className="flex-1 px-5 pb-6 flex flex-col min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
-          {isDone ? (
+          {instantMatchActive && ALL_ACTIVE_MATCHES.length === 0 ? (
+            <motion.div
+              key="instant-empty"
+              data-ocid="home.instant_match.empty_state"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col items-center justify-center flex-1 text-center py-10"
+            >
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
+                style={{ background: "oklch(0.72 0.18 55 / 0.12)" }}
+              >
+                <Zap
+                  className="w-9 h-9"
+                  style={{ color: "oklch(0.72 0.18 55)" }}
+                />
+              </div>
+              <h2 className="text-xl font-bold text-foreground mb-2">
+                No active users right now
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
+                No active users right now — check back soon ⚡
+              </p>
+            </motion.div>
+          ) : isDone ? (
             <motion.div
               key="empty"
               data-ocid="home.empty_state"
@@ -234,10 +494,10 @@ export function HomeScreen({
             </motion.div>
           ) : (
             <SwipeCardStack
-              key={`stack-${currentIndex}`}
-              matches={DAILY_MATCHES}
+              key={`stack-${currentIndex}-${instantMatchActive ? "instant" : "normal"}`}
+              matches={displayedMatches}
               currentIndex={currentIndex}
-              onConnect={handleConnect}
+              onConnect={handleConnectRequest}
               onSkip={handleSkip}
               onOpenProfile={(match) => setDetailProfile(match)}
             />
@@ -330,7 +590,6 @@ function SwipeCardStack({
     } else if (x < -120) {
       flyOff("left");
     } else {
-      // snap back
       dragX.set(0);
     }
   };

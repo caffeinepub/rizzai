@@ -22,6 +22,7 @@ import {
   Send,
   Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -61,25 +62,21 @@ const HEALTH_CONFIG: Record<
 function computeHealth(messages: Message[]): HealthStatus {
   if (messages.length === 0) return "dying";
 
-  // Check last 6 messages for back-and-forth
   const recent = messages.slice(-6);
   const senders = recent.map((m) => m.senderId);
 
-  // Count consecutive "me" messages at the end (unanswered streak)
   let myStreak = 0;
   for (let i = senders.length - 1; i >= 0; i--) {
     if (senders[i] === "me") myStreak++;
     else break;
   }
 
-  // Count alternations in recent window
   let alternations = 0;
   for (let i = 1; i < senders.length; i++) {
     if (senders[i] !== senders[i - 1]) alternations++;
   }
 
-  // Last message is from them → engaged
-  const lastFromThem = messages[messages.length - 1].senderId === "them";
+  const lastFromThem = messages[messages.length - 1].senderId !== "me";
 
   if (myStreak >= 3) return "dying";
   if (lastFromThem && alternations >= 2) return "good";
@@ -103,6 +100,36 @@ function ConversationHealthMeter({ messages }: { messages: Message[] }) {
     >
       <span className="leading-none">{cfg.emoji}</span>
       <span>{cfg.label}</span>
+    </motion.div>
+  );
+}
+
+// ── Reply Reminder Pill ───────────────────────────────────────────────────────
+
+function ReplyReminderPill({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <motion.div
+      data-ocid="chat.reminder.card"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ type: "spring", stiffness: 360, damping: 30 }}
+      className="mx-4 mt-2 flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border border-amber-500/40"
+      style={{ background: "oklch(0.16 0.03 75 / 0.35)" }}
+    >
+      <span className="text-base leading-none flex-shrink-0">👀</span>
+      <p className="flex-1 text-xs font-semibold text-amber-300 leading-tight">
+        You have an unread message
+      </p>
+      <button
+        type="button"
+        data-ocid="chat.reminder.close_button"
+        onClick={onDismiss}
+        className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
+        aria-label="Dismiss reminder"
+      >
+        <X className="w-3 h-3 text-amber-400/70" />
+      </button>
     </motion.div>
   );
 }
@@ -369,11 +396,13 @@ function AIAssistantPanel({
   onInsert,
   lastMessageFromMe,
   onOpenPricing,
+  priorityAIEnabled = false,
 }: {
   onClose: () => void;
   onInsert: (text: string) => void;
   lastMessageFromMe: boolean;
   onOpenPricing: () => void;
+  priorityAIEnabled?: boolean;
 }) {
   const [activeMode, setActiveMode] = useState<AIMode>("Reply Suggestions");
   const suggestions = SUGGESTIONS[activeMode];
@@ -405,6 +434,46 @@ function AIAssistantPanel({
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
 
+        {/* Priority AI upsell banner for free users */}
+        {!priorityAIEnabled && (
+          <div
+            className="mx-4 mt-2 mb-1 px-3 py-2 rounded-xl flex items-center justify-between gap-2"
+            style={{
+              background: "oklch(0.18 0.03 75 / 0.4)",
+              border: "1px solid oklch(0.55 0.15 75 / 0.3)",
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              <Zap
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: "oklch(0.75 0.18 75)" }}
+              />
+              <span className="text-[11px] text-muted-foreground">
+                ⚡ Upgrade to{" "}
+                <span
+                  style={{ color: "oklch(0.80 0.16 75)" }}
+                  className="font-semibold"
+                >
+                  Priority AI
+                </span>{" "}
+                for faster responses
+              </span>
+            </div>
+            <button
+              type="button"
+              data-ocid="chat.ai_panel.open_modal_button"
+              onClick={() => {
+                onClose();
+                onOpenPricing();
+              }}
+              className="text-[11px] font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
+              style={{ color: "oklch(0.75 0.18 75)" }}
+            >
+              Upgrade
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-2">
@@ -412,21 +481,35 @@ function AIAssistantPanel({
             <span className="font-bold text-foreground text-base">
               AI Assistant
             </span>
-            {/* Credit counter */}
-            <span className="text-[10px] text-muted-foreground ml-1">
-              5 free credits left ·{" "}
-              <button
-                type="button"
-                data-ocid="chat.ai_panel.open_modal_button"
-                onClick={() => {
-                  onClose();
-                  onOpenPricing();
+            {/* Priority badge */}
+            {priorityAIEnabled && (
+              <span
+                className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: "oklch(0.55 0.18 75 / 0.2)",
+                  color: "oklch(0.80 0.18 75)",
+                  border: "1px solid oklch(0.65 0.18 75 / 0.4)",
                 }}
-                className="text-primary hover:underline"
               >
-                Get more →
-              </button>
-            </span>
+                <Zap className="w-2.5 h-2.5" /> Priority
+              </span>
+            )}
+            {/* Credit counter */}
+            {!priorityAIEnabled && (
+              <span className="text-[10px] text-muted-foreground ml-1">
+                5 free credits left ·{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPricing();
+                  }}
+                  className="text-primary hover:underline"
+                >
+                  Get more →
+                </button>
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -539,10 +622,12 @@ export function ChatScreen({
   onOpenPricing,
   aiFirstMessageProfile,
   onClearAiFirstMessage,
+  priorityAIEnabled = false,
 }: {
   onOpenPricing: () => void;
   aiFirstMessageProfile?: Match | null;
   onClearAiFirstMessage?: () => void;
+  priorityAIEnabled?: boolean;
 }) {
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
   const [conversations, setConversations] = useState(MOCK_CONVERSATIONS);
@@ -554,7 +639,6 @@ export function ChatScreen({
     if (!aiFirstMessageProfile) return;
     if (prevAiProfile.current === aiFirstMessageProfile.id) return;
     prevAiProfile.current = aiFirstMessageProfile.id;
-    // Find existing convo or create a new empty one
     const existingConvo = conversations.find(
       (c) => c.match.id === aiFirstMessageProfile.id,
     );
@@ -642,6 +726,7 @@ export function ChatScreen({
         onSend={handleSend}
         onSimulatedReply={() => handleSimulatedReply(activeConvo.id)}
         onOpenPricing={onOpenPricing}
+        priorityAIEnabled={priorityAIEnabled}
         showAiFirstMessage={showAiFirstMessage}
         aiFirstMessageProfile={aiFirstMessageProfile}
         onDismissAiFirstMessage={() => {
@@ -662,44 +747,60 @@ export function ChatScreen({
       </header>
 
       <div data-ocid="chat.list" className="px-3 pb-24 space-y-1">
-        {conversations.map((convo, i) => (
-          <motion.button
-            type="button"
-            key={convo.id}
-            data-ocid={`chat.item.${i + 1}`}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.07 }}
-            onClick={() => handleOpen(convo.id)}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60 active:bg-secondary transition-colors text-left"
-          >
-            <div className="relative flex-shrink-0">
-              <Avatar className="w-12 h-12 border border-border">
-                <AvatarImage src={convo.match.photo} alt={convo.match.name} />
-                <AvatarFallback>{convo.match.name[0]}</AvatarFallback>
-              </Avatar>
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-background" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-foreground text-sm">
-                  {convo.match.name}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {convo.lastTime}
-                </span>
+        {conversations.map((convo, i) => {
+          // Determine if the last message is from the other person (not "me")
+          const lastMsg = convo.messages[convo.messages.length - 1];
+          const lastFromThem = lastMsg && lastMsg.senderId !== "me";
+
+          return (
+            <motion.button
+              type="button"
+              key={convo.id}
+              data-ocid={`chat.item.${i + 1}`}
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.07 }}
+              onClick={() => handleOpen(convo.id)}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60 active:bg-secondary transition-colors text-left"
+            >
+              <div className="relative flex-shrink-0">
+                <Avatar className="w-12 h-12 border border-border">
+                  <AvatarImage src={convo.match.photo} alt={convo.match.name} />
+                  <AvatarFallback>{convo.match.name[0]}</AvatarFallback>
+                </Avatar>
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-background" />
               </div>
-              <p className="text-sm text-muted-foreground truncate mt-0.5">
-                {convo.lastMessage}
-              </p>
-            </div>
-            {convo.unread > 0 && (
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
-                {convo.unread}
-              </span>
-            )}
-          </motion.button>
-        ))}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground text-sm">
+                    {convo.match.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {convo.lastTime}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  {convo.lastMessage}
+                </p>
+                {/* Reply reminder label */}
+                {lastFromThem && (
+                  <p
+                    data-ocid="chat.reminder.toast"
+                    className="text-[11px] font-medium text-amber-400/80 mt-0.5 flex items-center gap-1"
+                  >
+                    <span>👀</span>
+                    <span>You have an unread message</span>
+                  </p>
+                )}
+              </div>
+              {convo.unread > 0 && (
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                  {convo.unread}
+                </span>
+              )}
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
@@ -711,6 +812,7 @@ function ChatDetail({
   onSend,
   onSimulatedReply,
   onOpenPricing,
+  priorityAIEnabled = false,
   showAiFirstMessage,
   aiFirstMessageProfile,
   onDismissAiFirstMessage,
@@ -720,6 +822,7 @@ function ChatDetail({
   onSend: (text: string) => void;
   onSimulatedReply: () => void;
   onOpenPricing: () => void;
+  priorityAIEnabled?: boolean;
   showAiFirstMessage?: boolean;
   aiFirstMessageProfile?: Match | null;
   onDismissAiFirstMessage?: () => void;
@@ -733,14 +836,18 @@ function ChatDetail({
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [sentCount, setSentCount] = useState(0);
   const [showUpsellNudge, setShowUpsellNudge] = useState(false);
+  const [showReminderPill, setShowReminderPill] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const reminderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Look up trust score for the person being chatted with
   const matchData = MOCK_MATCHES.find((m) => m.id === conversation.match.id);
   const trustScore = matchData?.trustScore ?? 92;
 
+  const lastMsg = conversation.messages[conversation.messages.length - 1];
+  const lastMessageFromThem = lastMsg && lastMsg.senderId !== "me";
   const lastMessageFromMe =
     conversation.messages.length > 0 &&
     conversation.messages[conversation.messages.length - 1].senderId === "me";
@@ -755,13 +862,45 @@ function ChatDetail({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation.messages, isTyping]);
 
+  // Reply reminder: show pill after 30s if last message is from them
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when messages change
+  useEffect(() => {
+    // Clear any existing timer
+    if (reminderTimerRef.current) {
+      clearTimeout(reminderTimerRef.current);
+      reminderTimerRef.current = null;
+    }
+
+    if (lastMessageFromThem) {
+      // Hide pill initially when messages change (e.g., new reply just arrived)
+      setShowReminderPill(false);
+      reminderTimerRef.current = setTimeout(() => {
+        setShowReminderPill(true);
+      }, 30000);
+    } else {
+      // Last message is from me — dismiss any existing reminder
+      setShowReminderPill(false);
+    }
+
+    return () => {
+      if (reminderTimerRef.current) {
+        clearTimeout(reminderTimerRef.current);
+      }
+    };
+  }, [conversation.messages.length, lastMessageFromThem]);
+
   const handleSubmit = () => {
     if (!input.trim()) return;
+    // Dismiss reminder pill when user sends a message
+    setShowReminderPill(false);
+    if (reminderTimerRef.current) {
+      clearTimeout(reminderTimerRef.current);
+      reminderTimerRef.current = null;
+    }
     onSend(input);
     setInput("");
     const newCount = sentCount + 1;
     setSentCount(newCount);
-    // Show soft upsell after 2nd message, once per session
     if (newCount === 2 && !showUpsellNudge) {
       setShowUpsellNudge(true);
     }
@@ -866,7 +1005,7 @@ function ChatDetail({
         <div ref={bottomRef} />
       </div>
 
-      {/* Soft upsell nudge + Suggestion cards + Input area */}
+      {/* Bottom area: upsell + reminder + suggestions + input */}
       <div className="flex-shrink-0 border-t border-border">
         {/* Soft Upsell Nudge */}
         <AnimatePresence>
@@ -912,6 +1051,13 @@ function ChatDetail({
                 </button>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Reply Reminder Pill — appears after 30s of no reply */}
+        <AnimatePresence>
+          {showReminderPill && (
+            <ReplyReminderPill onDismiss={() => setShowReminderPill(false)} />
           )}
         </AnimatePresence>
 
@@ -996,6 +1142,7 @@ function ChatDetail({
             }}
             lastMessageFromMe={lastMessageFromMe}
             onOpenPricing={onOpenPricing}
+            priorityAIEnabled={priorityAIEnabled}
           />
         )}
       </AnimatePresence>

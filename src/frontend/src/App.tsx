@@ -31,6 +31,7 @@ export default function App() {
   const [boostEndsAt, setBoostEndsAt] = useState<number | null>(null);
   const [aiFirstMessageProfile, setAiFirstMessageProfile] =
     useState<Match | null>(null);
+  const [priorityAIEnabled, setPriorityAIEnabled] = useState(false);
 
   const handleConnect = (matchId: string) => {
     setConnectedIds((prev) => new Set([...prev, matchId]));
@@ -94,6 +95,7 @@ export default function App() {
                 onGoToDiscover={() => setActiveTab("discover")}
                 onOpenPricing={() => setShowPricing(true)}
                 boostEndsAt={boostEndsAt}
+                onBoostActivate={(endsAt) => handleActivateBoost(endsAt)}
               />
             )}
             {activeTab === "discover" && <DiscoverScreen />}
@@ -102,6 +104,7 @@ export default function App() {
                 onOpenPricing={() => setShowPricing(true)}
                 aiFirstMessageProfile={aiFirstMessageProfile}
                 onClearAiFirstMessage={() => setAiFirstMessageProfile(null)}
+                priorityAIEnabled={priorityAIEnabled}
               />
             )}
             {activeTab === "profile" && (
@@ -109,6 +112,8 @@ export default function App() {
                 onOpenPricing={() => setShowPricing(true)}
                 boostEndsAt={boostEndsAt}
                 onActivateBoost={handleActivateBoost}
+                priorityAIEnabled={priorityAIEnabled}
+                onPriorityAIChange={setPriorityAIEnabled}
               />
             )}
           </motion.div>

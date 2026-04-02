@@ -138,6 +138,8 @@ interface ProfileScreenProps {
   onOpenPricing: () => void;
   boostEndsAt: number | null;
   onActivateBoost: (endsAt: number | null) => void;
+  priorityAIEnabled: boolean;
+  onPriorityAIChange: (enabled: boolean) => void;
 }
 
 function useBoostTimer(
@@ -179,6 +181,8 @@ export function ProfileScreen({
   onOpenPricing,
   boostEndsAt,
   onActivateBoost,
+  priorityAIEnabled,
+  onPriorityAIChange,
 }: ProfileScreenProps) {
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [selectedDuration, setSelectedDuration] = useState<30 | 60>(30);
@@ -457,6 +461,16 @@ export function ProfileScreen({
         </motion.div>
       </div>
 
+      {/* AI Settings Card */}
+      <div className="mx-5 mb-5">
+        <AISettingsCard
+          isPremium={isPremium}
+          priorityAIEnabled={priorityAIEnabled}
+          onPriorityAIChange={onPriorityAIChange}
+          onOpenPricing={onOpenPricing}
+        />
+      </div>
+
       {/* Smart Boost Card */}
       <div className="mx-5 mb-5" ref={cardRef}>
         <SmartBoostCard
@@ -683,6 +697,128 @@ function ViewerCard({
         </p>
       </div>
     </motion.div>
+  );
+}
+
+function AISettingsCard({
+  isPremium,
+  priorityAIEnabled,
+  onPriorityAIChange,
+  onOpenPricing,
+}: {
+  isPremium: boolean;
+  priorityAIEnabled: boolean;
+  onPriorityAIChange: (enabled: boolean) => void;
+  onOpenPricing: () => void;
+}) {
+  const isActive = isPremium && priorityAIEnabled;
+
+  return (
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{
+        background: isActive
+          ? "linear-gradient(135deg, oklch(0.14 0.025 75 / 0.6), oklch(0.12 0.015 250))"
+          : "oklch(0.13 0.01 250 / 0.8)",
+        borderColor: isActive
+          ? "oklch(0.65 0.18 75 / 0.5)"
+          : "oklch(0.25 0.01 250)",
+      }}
+    >
+      <div className="px-4 py-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          AI Settings
+        </h3>
+
+        <div className="flex items-center gap-3">
+          {/* Icon */}
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: isActive
+                ? "oklch(0.55 0.18 75 / 0.2)"
+                : "oklch(0.18 0.01 250)",
+            }}
+          >
+            <Zap
+              className="w-4.5 h-4.5"
+              style={{
+                color: isActive
+                  ? "oklch(0.75 0.18 75)"
+                  : "oklch(0.55 0.04 250)",
+              }}
+            />
+          </div>
+
+          {/* Label */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-sm font-semibold"
+                style={{
+                  color: isActive
+                    ? "oklch(0.85 0.15 75)"
+                    : "oklch(0.88 0.02 250)",
+                }}
+              >
+                Priority AI
+              </span>
+              {isActive && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+                  style={{
+                    background: "oklch(0.55 0.18 75 / 0.25)",
+                    color: "oklch(0.80 0.18 75)",
+                    border: "1px solid oklch(0.65 0.18 75 / 0.4)",
+                  }}
+                >
+                  ON
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Faster, smarter AI responses
+            </p>
+          </div>
+
+          {/* Toggle or Lock */}
+          {isPremium ? (
+            <Switch
+              checked={priorityAIEnabled}
+              onCheckedChange={onPriorityAIChange}
+              data-ocid="profile.priority_ai.switch"
+              style={
+                priorityAIEnabled
+                  ? ({
+                      "--switch-bg": "oklch(0.65 0.18 75)",
+                    } as React.CSSProperties)
+                  : undefined
+              }
+            />
+          ) : (
+            <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          )}
+        </div>
+
+        {/* Upsell for free users */}
+        {!isPremium && (
+          <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              Available on Pro &amp; Elite
+            </span>
+            <button
+              type="button"
+              data-ocid="profile.priority_ai.open_modal_button"
+              onClick={onOpenPricing}
+              className="text-xs font-semibold hover:opacity-80 transition-opacity"
+              style={{ color: "oklch(0.75 0.18 75)" }}
+            >
+              Upgrade →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
