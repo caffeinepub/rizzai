@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MOCK_MATCHES, type Match } from "@/data/mockData";
 import { getActivityStatus, rankProfiles } from "@/utils/discoverRanking";
-import { MessageCircle, SlidersHorizontal, Star, Zap } from "lucide-react";
+import { SlidersHorizontal, Star, UserPlus, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -287,8 +287,8 @@ function ProfileCard({
           ))}
         </div>
 
-        {/* Meta row: trust + response time */}
-        <div className="flex items-center gap-3 mb-3">
+        {/* Meta row: trust + response time + compatibility */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
             {profile.trustScore} trust
@@ -302,20 +302,25 @@ function ProfileCard({
           {profile.isNearby && (
             <span className="text-[11px] text-muted-foreground">📍 Nearby</span>
           )}
+          {profile.compatibility != null && (
+            <span className="text-[11px] font-semibold text-primary">
+              {profile.compatibility}% match
+            </span>
+          )}
         </div>
 
-        {/* Start Chat button */}
+        {/* Connect button */}
         <button
           type="button"
-          data-ocid={`discover.start_chat.button.${index + 1}`}
+          data-ocid={`discover.connect.button.${index + 1}`}
           className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all"
           onClick={(e) => {
             e.stopPropagation();
             onSelect();
           }}
         >
-          <MessageCircle className="w-4 h-4" />
-          Start Chat
+          <UserPlus className="w-4 h-4" />
+          Connect
         </button>
       </div>
     </motion.div>

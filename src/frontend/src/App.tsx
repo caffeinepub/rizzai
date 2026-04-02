@@ -74,6 +74,14 @@ export default function App() {
                     className={`w-5 h-5 transition-all duration-200 ${
                       isActive ? "text-primary" : "text-muted-foreground"
                     }`}
+                    style={
+                      isActive
+                        ? {
+                            filter:
+                              "drop-shadow(0 0 8px oklch(0.7 0.25 280)) drop-shadow(0 0 4px oklch(0.75 0.22 280))",
+                          }
+                        : undefined
+                    }
                   />
                   {isActive && (
                     <motion.div
